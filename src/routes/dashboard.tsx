@@ -1,0 +1,244 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { ArrowUpRight, Inbox, PlusCircle, Search } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
+import { readInvoices, subscribeToInvoiceEvents, useWallet, type Invoice } from "@/lib/stellar";
+
+export const Route = createFileRoute("/dashboard")({
+  head: () => ({
+    meta: [
+      { title: "Dashboard — NovaInvoice" },
+      { name: "description", content: "See every invoice you've sent, at a glance." },
+    ],
+  }),
+  component: Dashboard,
+});
+
+type Filter = "all" | "pending" | "paid";
+
+function Dashboard() {
+  const navigate = useNavigate();
+  const { address, connecting } = useWallet();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!connecting && !address) {
+      void navigate({ to: "/", replace: true });
+    }
+  }, [address, connecting, navigate]);
+
+  useEffect(() => {
+    if (!address) return;
+
+    let mounted = true;
+    async function load() {
+      try {
+        const data = await readInvoices();
+        if (mounted) setInvoices(data);
+      } catch (err) {
+        console.error("Failed to load invoices:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+
+    // Refresh from actual Soroban contract events.
+    const unsubscribe = subscribeToInvoiceEvents(() => void load());
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [address]);
+
+  if (!address) return null;
+
+  const filtered = invoices.filter((i) => {
+    if (filter !== "all" && i.status !== filter) return false;
+    if (query && !i.description.toLowerCase().includes(query.toLowerCase())) return false;
+    return true;
+  });
+
+  const totalPending = invoices
+    .filter((i) => i.status === "pending")
+    .reduce((s, i) => s + Number(i.amount), 0);
+  const totalPaid = invoices
+    .filter((i) => i.status === "paid")
+    .reduce((s, i) => s + Number(i.amount), 0);
+
+  return (
+    <AppShell>
+      <div className="flex flex-col items-start gap-4 pt-3 sm:flex-row sm:items-end sm:justify-between sm:pt-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Your invoices 📬</h1>
+          <p className="mt-1 text-muted-foreground">
+            Every request you've sent, in one cozy place.
+          </p>
+        </div>
+        <Link
+          to="/create"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 font-extrabold text-primary-foreground shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-auto"
+        >
+          <PlusCircle className="h-5 w-5" /> New invoice
+        </Link>
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <StatCard
+          emoji="📋"
+          label="Total invoices"
+          value={invoices.length.toString()}
+          tone="neutral"
+        />
+        <StatCard
+          emoji="⏳"
+          label="Pending"
+          value={`${totalPending.toFixed(2)} XLM`}
+          tone="warning"
+        />
+        <StatCard emoji="✅" label="Paid" value={`${totalPaid.toFixed(2)} XLM`} tone="success" />
+      </div>
+
+      <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid w-full grid-cols-3 items-center gap-1 rounded-full bg-secondary/70 p-1 sm:inline-flex sm:w-auto">
+          {(["all", "pending", "paid"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`min-h-10 rounded-full px-3 py-1.5 text-sm font-bold capitalize transition focus-visible:ring-2 focus-visible:ring-ring ${
+                filter === f
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <div className="flex min-h-11 w-full items-center gap-2 rounded-full bg-card px-4 py-2 ring-1 ring-border focus-within:ring-2 focus-within:ring-ring sm:w-auto">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search description…"
+            aria-label="Search invoices by description"
+            className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-muted-foreground/70 sm:w-56"
+          />
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {loading ? (
+          <div className="col-span-full py-20 text-center">
+            <span className="inline-block h-8 w-8 animate-spin rounded-full border-[3px] border-primary/40 border-t-primary" />
+            <p className="mt-3 text-sm font-bold text-muted-foreground">
+              Loading invoices from database…
+            </p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState hasAny={invoices.length > 0} />
+        ) : (
+          filtered.map((inv) => <InvoiceCard key={inv.id} invoice={inv} />)
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+function StatCard({
+  emoji,
+  label,
+  value,
+  tone,
+}: {
+  emoji: string;
+  label: string;
+  value: string;
+  tone: "neutral" | "warning" | "success";
+}) {
+  const bg =
+    tone === "warning"
+      ? "bg-[oklch(0.97_0.09_90)]"
+      : tone === "success"
+        ? "bg-[oklch(0.95_0.08_155)]"
+        : "bg-card";
+  return (
+    <div className={`rounded-3xl ${bg} p-5 ring-1 ring-border`}>
+      <div className="text-2xl">{emoji}</div>
+      <div className="mt-2 text-sm font-bold text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl font-extrabold">{value}</div>
+    </div>
+  );
+}
+
+function InvoiceCard({ invoice }: { invoice: Invoice }) {
+  const paid = invoice.status === "paid";
+  return (
+    <Link
+      to="/pay/$id"
+      params={{ id: invoice.id }}
+      className="group rounded-3xl bg-card p-5 ring-1 ring-border transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            #{invoice.id}
+          </div>
+          <div className="mt-1 text-lg font-extrabold">{invoice.description}</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            {new Date(invoice.createdAt).toLocaleDateString()}
+            {invoice.dueDate && ` · due ${new Date(invoice.dueDate).toLocaleDateString()}`}
+          </div>
+        </div>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
+            paid
+              ? "bg-[oklch(0.94_0.08_155)] text-[oklch(0.35_0.1_155)]"
+              : "bg-[oklch(0.95_0.1_90)] text-[oklch(0.45_0.1_75)]"
+          }`}
+        >
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+          {paid ? "Paid" : "Pending"}
+        </span>
+      </div>
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <span className="break-all text-2xl font-extrabold sm:text-3xl">{invoice.amount}</span>
+          <span className="ml-1 text-sm font-bold text-muted-foreground">XLM</span>
+        </div>
+        <span className="inline-flex items-center gap-1 text-sm font-bold text-primary sm:opacity-0 sm:transition sm:group-hover:opacity-100">
+          Open <ArrowUpRight className="h-4 w-4" />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function EmptyState({ hasAny }: { hasAny: boolean }) {
+  return (
+    <div className="col-span-full rounded-3xl bg-card p-10 text-center ring-1 ring-border">
+      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary">
+        <Inbox className="h-7 w-7 text-muted-foreground" />
+      </div>
+      <h3 className="mt-4 text-xl font-extrabold">
+        {hasAny ? "Nothing matches that filter" : "No invoices yet"}
+      </h3>
+      <p className="mt-1 text-muted-foreground">
+        {hasAny
+          ? "Try a different tab or clear your search."
+          : "Send your first invoice and get paid in XLM ✨"}
+      </p>
+      {!hasAny && (
+        <Link
+          to="/create"
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 font-extrabold text-primary-foreground transition hover:-translate-y-0.5"
+        >
+          <PlusCircle className="h-5 w-5" /> Create invoice
+        </Link>
+      )}
+    </div>
+  );
+}
