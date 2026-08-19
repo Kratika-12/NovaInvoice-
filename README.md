@@ -19,11 +19,11 @@ It combines multi-wallet support, QR-code payment links, native XLM transfers, c
 
 | Resource               | Link                                                                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Frontend               | [Open NovaInvoice](https://stellar-invoice-mauve.vercel.app/)                                                                      |
+| Frontend               | [Open NovaInvoice](https://nova-invoice-silk.vercel.app/)                                                                      |
 | Contract               | [Open in Stellar Lab](https://lab.stellar.org/r/testnet/contract/CAZDIM6GMNYMY7FRY3LOZQ5IOXM3QE55GHMHNOYKNXI52ATE5JZ3QSZL)            |
 | Deployment transaction | [View on Stellar Expert](https://stellar.expert/explorer/testnet/tx/ae2fa58566cc641853b7c5f000570cb0ffef6005855d81009a1147904f0832a1) |
 | Payment transaction    | [View on Stellar Expert](https://stellar.expert/explorer/testnet/tx/cc715fef46716ac9c0ad522966d977b938be4b7b99533866d9a6a6a7ca1fd63e) |
-| Demo video             | [Watch the 1–2 minute walkthrough](https://youtu.be/daa2q1TRowM)                                                                      |
+| Demo video             | [Watch the 1–2 minute walkthrough](https://youtu.be/RKVcpoqPnnI)                                                                      |
 
 ---
 
@@ -85,11 +85,11 @@ Focus: advanced contracts, production architecture, automated quality gates, and
 | Production-ready architecture | ✅ Complete | Typed modules, route protection, environment configuration, server functions, and documented architecture |
 | Public GitHub repository | ✅ Complete | [Kratika-12/NovaInvoice-](https://github.com/Kratika-12/NovaInvoice-) |
 | Minimum 10 meaningful commits | ✅ Complete | More than 10 meaningful commits prepared |
-| Live demo | ✅ Complete | [stellar-invoice-mauve.vercel.app](https://stellar-invoice-mauve.vercel.app/) |
+| Live demo | ✅ Complete | [nova-invoice-silk.vercel.app](https://nova-invoice-silk.vercel.app/) |
 | Contract address and transactions | ✅ Complete | Contract ID, deployment hash, and payment hash are published below |
 | Product and mobile screenshots | ✅ Complete | Seven labeled product screenshots are included below |
 | Passing CI screenshot | ✅ Complete | GitHub Actions and Vercel checks are shown below |
-| Demo video | ✅ Complete | [Watch the project walkthrough](https://youtu.be/daa2q1TRowM) |
+| Demo video | ✅ Complete | [Watch the project walkthrough](https://youtu.be/RKVcpoqPnnI) |
 
 ## Final Submission Readiness
 
